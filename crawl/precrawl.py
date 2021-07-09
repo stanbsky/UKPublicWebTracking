@@ -114,15 +114,14 @@ class Precrawl:
                 )
 
                 # Start by visiting the page
-                command_sequence.append_command(GetCommand(url=site, sleep=3), timeout=60)
+                command_sequence.get(sleep=3)
 
                 if screenshot:
-                    command_sequence.append_command(
-                        command_sequence.save_screenshot(suffix=self.timestamp))
+                    command_sequence.screenshot_full_page(suffix=self.timestamp)
 
                 # Run commands across the three browsers (simple parallelization)
                 manager.execute_command_sequence(command_sequence)
 
 if __name__ == "__main__":
-    crawl = Precrawl('/opt/crawl/lists/urls.json')
-    crawl.crawl(category='fire')
+    crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')
+    crawl.crawl(category='fire', screenshot=True)

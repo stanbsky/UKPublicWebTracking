@@ -13,7 +13,7 @@ setup:
 	git submodule update
 	make build-docker-image
 
-.PHONY:directories:
+.PHONY:directories
 	mkdir data logs
 	setfacl -d -m g::rwX data logs
 
