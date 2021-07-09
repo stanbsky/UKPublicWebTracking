@@ -12,3 +12,14 @@ setup:
 	git submodule init
 	git submodule update
 	make build-docker-image
+
+.PHONY:directories:
+	mkdir data logs
+	setfacl -d -m g::rwX data logs
+
+precrawl:directories
+	docker run --shm-size=2g \
+	-v $(CURDIR)/crawl:/opt/crawl \
+	-v $(CURDIR)/data:/opt/data \
+	-v $(CURDIR)/logs:/opt/logs \
+	-it openwpm python /opt/crawl/precrawl.py
