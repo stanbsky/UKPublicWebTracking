@@ -1,0 +1,4 @@
+FROM jupyter/scipy-notebook:notebook-6.4.0
+RUN pip install --quiet --no-cache-dir 'plyvel' && \
+	fix-permissions "${CONDA_DIR}" && \
+	fix-permissions "/home/${NB_USER}"
