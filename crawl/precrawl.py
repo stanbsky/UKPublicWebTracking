@@ -30,15 +30,14 @@ class Precrawl:
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         self.timestamp = timestamp # so we can set it later for openwmp
+        self.crawl_dir = Path(os.path.realpath(data_dir)).joinpath(f'crawl-{timestamp}')
 
         self.log_dir = os.path.realpath(log_dir)
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s | Precrawl | %(message)s",
             handlers=[
-                logging.FileHandler(
-                    os.path.join(self.log_dir, f'{timestamp}-precrawl.log')
-                ),
+                logging.FileHandler(self.log_dir.joinpath('precrawl.log')),
                 logging.StreamHandler()
             ]
         )
@@ -46,9 +45,8 @@ class Precrawl:
         self.num_browsers = num_browsers
         self.display_mode = display_mode
         
-        self.data_dir = os.path.realpath(data_dir)
-        self.DB_PATH = os.path.join(self.data_dir, f'{timestamp}-precrawl.sqlite')
-        logging.info(f'Database set to {self.DB_PATH}')
+        self.db_path = Path.joinpath('precrawl.sqlite')
+        logging.info(f'Database set to {self.db_path}')
 
         if (format == 'json'):
             with open(url_list) as f:
@@ -60,15 +58,14 @@ class Precrawl:
 
         if(category == 'all'):
             sites = list()
-            for _, urls in self.urls:
+            for _, urls in self.urls.items():
                 sites.extend(urls)
         else:
             sites = self.urls[category]
 
         manager_params = ManagerParams(num_browsers=self.num_browsers)
-        manager_params.data_directory = Path(self.data_dir)
-        manager_params.log_path = Path(
-            os.path.join(self.log_dir, f'{self.timestamp}-precrawl-openwpm.log')
+        manager_params.data_directory = self.crawl_path
+        manager_params.log_path = self.log_dir.joinpath('precrawl-openwpm.log')
         )
         browser_params = [BrowserParams(display_mode=self.display_mode)
                           for _ in range(self.num_browsers)]
@@ -89,12 +86,14 @@ class Precrawl:
             browser_params[i].dns_instrument = True
             # Perform bot mitigation: scrolling the page, random pauses
             browser_params[i].bot_mitigation = True
+            # Record all body content in leveldb
+            browser_params[i].save_content = "main_frame,ping,script,sub_frame,xmlhttprequest,other"
 
         with TaskManager(
             manager_params,
             browser_params,
-            SQLiteStorageProvider(Path(self.DB_PATH)),
-            LevelDbProvider(Path(self.data_dir).joinpath(f'{self.timestamp}-precrawl-leveldb'))
+            SQLiteStorageProvider(self.db_path),
+            LevelDbProvider(self.crawl_dir.joinpath('precrawl-leveldb'))
         ) as manager:
 
             # Visits the sites
@@ -117,11 +116,12 @@ class Precrawl:
                 command_sequence.get(sleep=3)
 
                 if screenshot:
-                    command_sequence.screenshot_full_page(suffix=self.timestamp)
+                    command_sequence.save_screenshot()
+                    command_sequence.screenshot_full_page(suffix='full')
 
                 # Run commands across the three browsers (simple parallelization)
                 manager.execute_command_sequence(command_sequence)
 
 if __name__ == "__main__":
     crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')
-    crawl.crawl(category='fire', screenshot=True)
+    crawl.crawl(category='all', screenshot=True)
