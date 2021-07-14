@@ -12,12 +12,13 @@ build-notebook-image:
 	docker build -f Dockerfile.notebook -t notebook .
 
 notebook:
-	docker run -d --rm -p 8888:8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user 1000 --group-add users -e GEN_CERT=yes \
-	-e PASSWORD='argon2:$argon2id$v=19$m=10240,t=10,p=8$Jl7whmIEtW7USolMH6w0MQ$fS5qc3oookfChh146si8Ng' notebook start-notebook.sh
+	-docker container stop notebook
+	docker run -d --rm -p 8889:8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user 1001 --group-add users -e GEN_CERT=yes \
+	notebook start-notebook.sh --NotebookApp.password='argon2:$$argon2id$$v=19$$m=10240,t=10,p=8$$Jl7whmIEtW7USolMH6w0MQ$$fS5qc3oookfChh146si8Ng'
 
 notebook-http:
 	docker run -d --rm -p 8888:8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user 1000 --group-add users \
-	-e PASSWORD='argon2:$argon2id$v=19$m=10240,t=10,p=8$Jl7whmIEtW7USolMH6w0MQ$fS5qc3oookfChh146si8Ng' notebook start-notebook.sh
+	notebook start-notebook.sh --NotebookApp.password='argon2:$$argon2id$$v=19$$m=10240,t=10,p=8$$Jl7whmIEtW7USolMH6w0MQ$$fS5qc3oookfChh146si8Ng'
 
 setup:
 	git submodule init
@@ -33,4 +34,4 @@ precrawl:directories
 	-v $(CURDIR)/crawl:/opt/crawl \
 	-v $(CURDIR)/data:/opt/data \
 	-v $(CURDIR)/logs:/opt/logs \
-	-it openwpm python /opt/crawl/precrawl.py
+	-it --rm openwpm python /opt/crawl/precrawl.py
