@@ -29,9 +29,19 @@ setup:
 	mkdir data logs
 	setfacl -d -m g::rwX data logs
 
-precrawl:directories
+define crawl
 	docker run --shm-size=2g \
 	-v $(CURDIR)/crawl:/opt/crawl \
 	-v $(CURDIR)/data:/opt/data \
 	-v $(CURDIR)/logs:/opt/logs \
-	-it --rm openwpm python /opt/crawl/precrawl.py
+	-it --rm openwpm python /opt/crawl/$(1) $(2)
+endef
+
+precrawl:directories
+	$(call crawl,precrawl.py,all)
+
+precrawl small:directories
+	$(call crawl,precrawl.py,fire)
+
+precrawl test:directories
+	$(call crawl,precrawl.py,test)

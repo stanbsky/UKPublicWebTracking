@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +33,7 @@ class Precrawl:
         self.timestamp = timestamp # so we can set it later for openwmp
         self.crawl_dir = Path(os.path.realpath(data_dir)).joinpath(f'crawl-{timestamp}')
 
-        self.log_dir = os.path.realpath(log_dir)
+        self.log_dir = Path(os.path.realpath(log_dir))
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s | Precrawl | %(message)s",
@@ -45,7 +46,7 @@ class Precrawl:
         self.num_browsers = num_browsers
         self.display_mode = display_mode
         
-        self.db_path = Path.joinpath('precrawl.sqlite')
+        self.db_path = self.crawl_dir.joinpath('precrawl.sqlite')
         logging.info(f'Database set to {self.db_path}')
 
         if (format == 'json'):
@@ -60,13 +61,14 @@ class Precrawl:
             sites = list()
             for _, urls in self.urls.items():
                 sites.extend(urls)
+        elif(category == 'test'):
+            sites = self.urls['fire'][:3]
         else:
             sites = self.urls[category]
 
         manager_params = ManagerParams(num_browsers=self.num_browsers)
-        manager_params.data_directory = self.crawl_path
+        manager_params.data_directory = self.crawl_dir
         manager_params.log_path = self.log_dir.joinpath('precrawl-openwpm.log')
-        )
         browser_params = [BrowserParams(display_mode=self.display_mode)
                           for _ in range(self.num_browsers)]
 
@@ -124,4 +126,4 @@ class Precrawl:
 
 if __name__ == "__main__":
     crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')
-    crawl.crawl(category='all', screenshot=True)
+    crawl.crawl(category=sys.argv[1], screenshot=True)
