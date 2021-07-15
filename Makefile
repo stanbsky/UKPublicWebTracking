@@ -40,8 +40,8 @@ endef
 precrawl:directories
 	$(call crawl,precrawl.py,all)
 
-precrawl small:directories
+precrawl-small:directories
 	$(call crawl,precrawl.py,fire)
 
-precrawl test:directories
+precrawl-test:directories
 	$(call crawl,precrawl.py,test)
