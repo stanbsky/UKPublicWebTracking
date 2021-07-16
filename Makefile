@@ -1,47 +1,64 @@
-OPENWPM_REPO=https://github.com/mozilla/OpenWPM.git
-OPENWPM_VERSION=v0.16.0
+include Config
 
 setup-openwpm-submodule:
 	git submodule add $(OPENWPM_REPO) OpenWPM
 	cd OpenWPM; git checkout $(OPENWPM_VERSION)
 
-build-docker-image:
+.openwpm: | OpenWPM
 	cd OpenWPM; docker build -f Dockerfile -t openwpm .
+	touch .openwpm
 
-build-notebook-image:
+.notebook:
 	docker build -f Dockerfile.notebook -t notebook .
+	touch .notebook
 
-notebook:
+SSL=
+ifeq ($(NOTEBOOK_HTTPS),1)
+	SSL=-e GEN_CERT\=yes
+endif
+notebook: .notebook
 	-docker container stop notebook
-	docker run -d --rm -p 8889:8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user 1001 --group-add users -e GEN_CERT=yes \
-	notebook start-notebook.sh --NotebookApp.password='argon2:$$argon2id$$v=19$$m=10240,t=10,p=8$$Jl7whmIEtW7USolMH6w0MQ$$fS5qc3oookfChh146si8Ng'
-
-notebook-http:
-	docker run -d --rm -p 8888:8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user 1000 --group-add users \
-	notebook start-notebook.sh --NotebookApp.password='argon2:$$argon2id$$v=19$$m=10240,t=10,p=8$$Jl7whmIEtW7USolMH6w0MQ$$fS5qc3oookfChh146si8Ng'
+	docker run -d --rm -p $(NOTEBOOK_PORT):8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user $(shell id -u) --group-add $(GROUP) $(SSL) \
+	notebook start-notebook.sh --NotebookApp.password=$(NOTEBOOK_PASS)
 
 setup:
 	git submodule init
 	git submodule update
-	make build-docker-image
+	make .openwpm
+	make directories
 
-.PHONY:directories
-	mkdir data logs
-	setfacl -d -m g::rwX data logs
+data:
+	-mkdir data
+	-setfacl -d -m g::rwX data
+
+logs:
+	-mkdir logs
+	-setfacl -d -m g::rwX logs
+
+directories: | data logs
+
+fix-permissions:
+	sudo chown -R $(shell id -u):$(GROUP) data
+	sudo find data/ -type d -exec chmod 2775 {} \+
+	sudo find data/ -type f -exec chmod 664 {} \+
 
 define crawl
 	docker run --shm-size=2g \
 	-v $(CURDIR)/crawl:/opt/crawl \
 	-v $(CURDIR)/data:/opt/data \
 	-v $(CURDIR)/logs:/opt/logs \
+	--group-add $(GROUP) \
 	-it --rm openwpm python /opt/crawl/$(1) $(2)
 endef
 
-precrawl:directories
+precrawl:directories .openwpm
 	$(call crawl,precrawl.py,all)
 
-precrawl-small:directories
+precrawl-small:directories .openwpm
 	$(call crawl,precrawl.py,fire)
 
-precrawl-test:directories
+precrawl-test:directories .openwpm
 	$(call crawl,precrawl.py,test)
+
+crawl:directories .openwpm
+	echo "This will run a full crawl including deep links harvested during precrawl. Not yet implemented."

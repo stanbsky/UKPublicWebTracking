@@ -1,5 +1,9 @@
+# Storage of crawl data & logs
 data
 logs
+# Makefile docker build targets
+.notebook
+.openwpm
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
