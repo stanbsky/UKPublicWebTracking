@@ -1,7 +1,11 @@
+# Select whether we're using singularity or docker
+CONTAINER_TYPE=singularity
+SINGULARITY_CACHEDIR=$(realpath ./.singularity/cache)
+SINGULARITY_TMPDIR=$(realpath ./.singularity/tmp)
 # Jupyter notebook settings
 #
 # Port to access notebook on, e.g. 8888 for https://localhost:8888
-NOTEBOOK_PORT=8888
+NOTEBOOK_PORT=24440
 # Hashed password, see https://jupyter-notebook.readthedocs.io/en/stable/public_server.html#preparing-a-hashed-password
 # !! IMPORTANT !! Escape dollar signs by prepending another, e.g. $ -> $$
 NOTEBOOK_PASS='argon2:$$argon2id$$v=19$$m=10240,t=10,p=8$$Jl7whmIEtW7USolMH6w0MQ$$fS5qc3oookfChh146si8Ng'
@@ -13,3 +17,4 @@ GROUP=users
 # Don't change unless you have a reason to
 OPENWPM_REPO=https://github.com/mozilla/OpenWPM.git
 OPENWPM_VERSION=v0.16.0
+OPENWPM_DOCKER_TAG=0.16.0

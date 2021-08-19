@@ -4,6 +4,10 @@ logs
 # Makefile docker build targets
 .notebook
 .openwpm
+# Singularity images
+.singularity
+*.sif
+*.def
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

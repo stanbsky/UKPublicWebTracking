@@ -125,5 +125,5 @@ class Precrawl:
                 manager.execute_command_sequence(command_sequence)
 
 if __name__ == "__main__":
-    crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')
+    crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='headless')
     crawl.crawl(category=sys.argv[1], screenshot=True)

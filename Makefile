@@ -1,26 +1,20 @@
 include Config
 
-setup-openwpm-submodule:
-	git submodule add $(OPENWPM_REPO) OpenWPM
-	cd OpenWPM; git checkout $(OPENWPM_VERSION)
-
-.openwpm: | OpenWPM
-	cd OpenWPM; docker build -f Dockerfile -t openwpm .
-	touch .openwpm
-
-.notebook:
-	docker build -f Dockerfile.notebook -t notebook .
-	touch .notebook
+ifeq ($(CONTAINER_TYPE),docker)
+	include docker.mk
+endif
+ifeq ($(CONTAINER_TYPE),singularity)
+	include singularity.mk
+endif
 
 SSL=
 ifeq ($(NOTEBOOK_HTTPS),1)
 	SSL=-e GEN_CERT\=yes
 endif
-notebook: .notebook
-	-docker container stop notebook
-	docker run -d --rm -p $(NOTEBOOK_PORT):8888 --name notebook -v $(CURDIR)/data:/home/jovyan/work --user $(shell id -u) --group-add $(GROUP) $(SSL) \
-	notebook start-notebook.sh --NotebookApp.password=$(NOTEBOOK_PASS)
 
+setup-openwpm-submodule:
+	git submodule add $(OPENWPM_REPO) OpenWPM
+	cd OpenWPM; git checkout $(OPENWPM_VERSION)
 setup:
 	git submodule init
 	git submodule update
@@ -41,15 +35,6 @@ fix-permissions:
 	sudo chown -R $(shell id -u):$(GROUP) data
 	sudo find data/ -type d -exec chmod 2775 {} \+
 	sudo find data/ -type f -exec chmod 664 {} \+
-
-define crawl
-	docker run --shm-size=2g \
-	-v $(CURDIR)/crawl:/opt/crawl \
-	-v $(CURDIR)/data:/opt/data \
-	-v $(CURDIR)/logs:/opt/logs \
-	--group-add $(GROUP) \
-	-it --rm openwpm python /opt/crawl/$(1) $(2)
-endef
 
 precrawl:directories .openwpm
 	$(call crawl,precrawl.py,all)
