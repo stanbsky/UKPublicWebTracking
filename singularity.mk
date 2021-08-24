@@ -18,14 +18,16 @@ notebook.sif:
 notebook: notebook.sif
 	-singularity instance stop notebook
 	singularity instance start \
-	-B $(CURDIR)/data:/home/jovyan \
-    --no-home notebook.sif notebook
+	-H $(CURDIR)/.notebook_home \
+	-B $(CURDIR)/data:/home/jovyan/work \
+    notebook.sif notebook
 	singularity exec instance://notebook start-notebook.sh \
+	--NotebookApp.notebook_dir=/home/jovyan/work \
     --NotebookApp.password=$(NOTEBOOK_PASS) \
     --NotebookApp.port=$(NOTEBOOK_PORT)
 
 define crawl
-	singularity exec --no-home \
+	singularity exec \
 	-B $(CURDIR)/crawl:/opt/crawl \
 	-B $(CURDIR)/data:/opt/data \
 	-B $(CURDIR)/logs:/opt/logs \
@@ -33,4 +35,3 @@ define crawl
 	--pwd /opt/OpenWPM \
 	openwpm.sif python /opt/crawl/$(1) $(2)
 endef
-

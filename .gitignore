@@ -8,6 +8,8 @@ logs
 .singularity
 *.sif
 *.def
+# Jupyter notebook home directory
+.notebook_home
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

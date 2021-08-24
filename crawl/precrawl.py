@@ -31,7 +31,12 @@ class Precrawl:
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         self.timestamp = timestamp # so we can set it later for openwmp
-        self.crawl_dir = Path(os.path.realpath(data_dir)).joinpath(f'crawl-{timestamp}')
+        data_dir = Path(os.path.realpath(data_dir))
+        self.crawl_dir = data_dir.joinpath(f'crawl-{timestamp}')
+        # .fake_home will be used as the home directory for crawl duration
+        fakehome = data_dir.joinpath('.fake_home')
+        fakehome.unlink(missing_ok=True)
+        self.home_dir = fakehome.symlink_to(self.crawl_dir)
 
         self.log_dir = Path(os.path.realpath(log_dir))
         logging.basicConfig(
@@ -63,6 +68,7 @@ class Precrawl:
                 sites.extend(urls)
         elif(category == 'test'):
             sites = self.urls['fire'][:3]
+            self.num_browsers = 1
         else:
             sites = self.urls[category]
 
@@ -125,5 +131,5 @@ class Precrawl:
                 manager.execute_command_sequence(command_sequence)
 
 if __name__ == "__main__":
-    crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='headless')
+    crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')
     crawl.crawl(category=sys.argv[1], screenshot=True)

@@ -1,3 +1,4 @@
+#TODO: setup docker commands to isolate $HOME akin to Singularity
 
 .openwpm: | OpenWPM
 	cd OpenWPM; docker build -f Dockerfile -t openwpm .
