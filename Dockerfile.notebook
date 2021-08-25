@@ -1,4 +1,8 @@
 FROM jupyter/scipy-notebook:notebook-6.4.0
-RUN pip install --quiet --no-cache-dir 'plyvel' && \
+RUN pip install --quiet --no-cache-dir 'wheel' && \
+	pip install --quiet --no-cache-dir 'modin[all]' && \
+	pip install --quiet --no-cache-dir 'plyvel' && \
+	pip install --quiet --no-cache-dir 'tldextract' && \
+	pip install --quiet --no-cache-dir 'bs4' && \
 	fix-permissions "${CONDA_DIR}" && \
 	fix-permissions "/home/${NB_USER}"
