@@ -38,6 +38,9 @@ def parseDisconnectList(blocklist):
 
     return disconnect_domains
 
+# TODO: Need to handle cases of IPs and localhost references
+def trim_url(url):
+    return '.'.join(extract(url)[1:])
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,19 +61,21 @@ with closing(sqlite3.connect(sys.argv[1])) as con:
         update_data = []
         for row in cur.execute('SELECT id, url, top_level_url FROM http_requests'):
             (rid, url, top_level_url) = row
+            url = trim_url(url)
+            top_level_url = trim_url(top_level_url)
             # import pdb;pdb.set_trace()
             if top_level_url not in url:
                 third_party = 1
-                tld = '.'.join(extract(url)[1:])
+                url = '.'.join(extract(url)[1:])
                 try:
-                    tracker_info = disconnect_domains[tld]
+                    tracker_info = disconnect_domains[url]
                     is_tracker = 1
-                    logging.info(f'Tracker detected: {tld}')
+                    logging.info(f'Tracker detected: {url}')
                 except KeyError:
                     tracker_info = None
                     is_tracker = 0
-                    logging.info(f'Benign 3rd party request: {tld}')
-                update_data.append((tld, third_party, is_tracker, json.dumps(tracker_info), rid))
+                    logging.info(f'Benign 3rd party request: {url}')
+                update_data.append((url, third_party, is_tracker, json.dumps(tracker_info), rid))
             else:
                 pass
                 # logging.info(f'First party request: {url}')
