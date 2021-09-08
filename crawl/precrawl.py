@@ -67,7 +67,8 @@ class Precrawl:
             for _, urls in self.urls.items():
                 sites.extend(urls)
         elif(category == 'test'):
-            sites = self.urls['fire'][:3]
+            # Allerdale - CMP, AMP; CNCBuilding... - CMP
+            sites = ['https://www.allerdale.gov.uk/en','https://www.cncbuildingcontrol.gov.uk']
             self.num_browsers = 1
         else:
             sites = self.urls[category]
