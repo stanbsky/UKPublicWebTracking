@@ -1,5 +1,5 @@
 # Select whether we're using singularity or docker
-CONTAINER_TYPE=docker
+CONTAINER_TYPE=singularity
 SINGULARITY_CACHEDIR=$(realpath ./.singularity/cache)
 SINGULARITY_TMPDIR=$(realpath ./.singularity/tmp)
 # Jupyter notebook settings
@@ -17,4 +17,4 @@ GROUP=users
 # Don't change unless you have a reason to
 OPENWPM_REPO=https://github.com/stanbsky/OpenWPM.git
 OPENWPM_VERSION=v0.17.0
-OPENWPM_DOCKER_TAG=0.17.0
+OPENWPM_DOCKER_TAG=cmp
