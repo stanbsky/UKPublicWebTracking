@@ -17,4 +17,4 @@ GROUP=users
 # Don't change unless you have a reason to
 OPENWPM_REPO=https://github.com/stanbsky/OpenWPM.git
 OPENWPM_VERSION=v0.17.0
-OPENWPM_DOCKER_TAG=0.17.0
+OPENWPM_DOCKER_TAG=cmp

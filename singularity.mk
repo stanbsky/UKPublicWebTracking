@@ -9,7 +9,7 @@ export:
 	touch .openwpm
 
 openwpm.sif: | OpenWPM
-	singularity pull openwpm.sif docker://openwpm/openwpm:$(OPENWPM_DOCKER_TAG)
+	singularity pull openwpm.sif docker://stanbsky/openwpm:$(OPENWPM_DOCKER_TAG)
 
 notebook.sif:
 	spython recipe Dockerfile.notebook notebook.def
