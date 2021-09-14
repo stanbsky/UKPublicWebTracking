@@ -2,6 +2,7 @@ import logging
 import json
 import os
 import sys
+import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,23 +23,27 @@ class Precrawl:
     def __init__(
         self,
         url_list,
-        format='json',
-        data_dir='../data',
-        log_dir='../logs',
-        num_browsers=4,
-        display_mode='headless'
+        data_dir,
+        log_dir,
+        lists_dir,
+        num_browsers=1,
+        display_mode='headless',
+        cmp=False
     ):
+
+        if cmp:
+            if num_browsers % 3:
+                raise ValueError('Number of browsers must be divisible by 3 when running with CMP interaction')
+        self.cmp = cmp
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         self.timestamp = timestamp # so we can set it later for openwmp
-        data_dir = Path(os.path.realpath(data_dir))
         self.crawl_dir = data_dir.joinpath(f'crawl-{timestamp}')
         # .fake_home will be used as the home directory for crawl duration
         fakehome = data_dir.joinpath('.fake_home')
         fakehome.unlink(missing_ok=True)
         self.home_dir = fakehome.symlink_to(self.crawl_dir)
 
-        self.log_dir = Path(os.path.realpath(log_dir))
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s | Precrawl | %(message)s",
@@ -54,28 +59,33 @@ class Precrawl:
         self.db_path = self.crawl_dir.joinpath('precrawl.sqlite')
         logging.info(f'Database set to {self.db_path}')
 
-        if (format == 'json'):
-            with open(url_list) as f:
+        if (url_list.suffix == 'json'):
+            with open(lists_dir.joinpath(url_list)) as f:
                 self.urls = json.load(f)
             for k, v in self.urls.items():
                 logging.info(f"Imported {len(v)} items in the {k} category")
+        elif (url_list.suffix == 'sqlite'):
+            # TODO: Handle sqlite url lists - see main crawl code
+            pass
+        else:
+            raise ValueError('Unrecognised format for url list file.')
 
-    def crawl(self, category='all', screenshot=False):
+    def crawl(self, category='full', screenshot='none'):
 
-        if(category == 'all'):
+        if(category == 'full'):
             sites = list()
             for _, urls in self.urls.items():
                 sites.extend(urls)
         elif(category == 'test'):
             # Allerdale - CMP, AMP; CNCBuilding... - CMP
             sites = ['https://www.allerdale.gov.uk/en','https://www.cncbuildingcontrol.gov.uk']
-            self.num_browsers = 1
+            self.num_browsers = 3 if self.cmp else 1
         else:
-            sites = self.urls[category]
+            sites = self.urls['fire'] # Fire services is small, containing several dozen urls
 
         manager_params = ManagerParams(num_browsers=self.num_browsers)
         manager_params.data_directory = self.crawl_dir
-        manager_params.log_path = self.log_dir.joinpath('precrawl-openwpm.log')
+        manager_params.log_path = self.log_dir.joinpath('precrawl-cmp-openwpm.log')
         browser_params = [BrowserParams(display_mode=self.display_mode)
                           for _ in range(self.num_browsers)]
 
@@ -98,6 +108,18 @@ class Precrawl:
             # Record all body content in leveldb
             browser_params[i].save_content = "main_frame,ping,script,sub_frame,xmlhttprequest,other"
 
+        if self.cmp:
+            for i in range(self.num_browsers):
+                t = i % 3
+                accept_cmp = self.seed_dir.joinpath('accept-cookies.tar')
+                reject_cmp = self.seed_dir.joinpath('reject-cookies.tar')
+                if(t == 0):
+                    browser_params[i].seed_tar = None
+                elif(t == 1):
+                    browser_params[i].seed_tar = accept_cmp
+                elif(t == 2):
+                    browser_params[i].seed_tar = reject_cmp
+
         with TaskManager(
             manager_params,
             browser_params,
@@ -105,6 +127,8 @@ class Precrawl:
             LevelDbProvider(self.crawl_dir.joinpath('precrawl-leveldb'))
         ) as manager:
 
+            # Use this value for assigning browsers during CMP crawls
+            offset = 0
             # Visits the sites
             for index, site in enumerate(sites):
 
@@ -128,9 +152,38 @@ class Precrawl:
                     command_sequence.save_screenshot()
                     command_sequence.screenshot_full_page(suffix='full')
 
-                # Run commands across the three browsers (simple parallelization)
-                manager.execute_command_sequence(command_sequence)
+                if not self.cmp:
+                    # Run commands across the three browsers (simple parallelization)
+                    manager.execute_command_sequence(command_sequence)
+                else:
+                    # Visit the same site by no-interact/accept/reject CMP browsers
+                    for i in range(offset, offset + 3):
+                        manager.execute_command_sequence(command_sequence, index=i)
+                    offset = 0 if i == self.num_browsers - 1 else i + 1
+
+
 
 if __name__ == "__main__":
-    crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')
-    crawl.crawl(category=sys.argv[1], screenshot=True)
+    parser = argparse.ArgumentParser(description='Conduct precrawl of the url list.')
+    parser.add_argument('--type', choices=['test','small','full'], default='full')
+    parser.add_argument('--cmp', action='store_true')
+    parser.add_argument('--browsers', type=int, default=1)
+    parser.add_argument('--display', type=ascii, default='headless')
+    parser.add_argument('--screenshots', choices=['full','viewport','both','none'], default='none')
+    parser.add_argumen('--data', type=Path, default=Path('../data'))
+    parser.add_argumen('--logs', type=Path, default=Path('../logs'))
+    parser.add_argumen('--lists', type=Path, default=Path('../crawl/lists'))
+    parser.add_argument('--urls', type=Path, default=Path('urls.json'))
+    args = parser.parse_args()
+
+    crawl = Precrawl(
+        url_list = args.urls,
+        data_dir = args.data,
+        log_dir = args.logs,
+        lists_dir = args.lists,
+        num_browsers = args.browsers,
+        display_mode = args.display,
+        cmp = args.cmp
+    )
+
+    crawl.do_crawl(category=args.type, screenshot=args.screenshots)

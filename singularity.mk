@@ -33,5 +33,11 @@ define crawl
 	-B $(CURDIR)/logs:/opt/logs \
 	-B /run:/run \
 	--pwd /opt/OpenWPM \
-	openwpm.sif python /opt/crawl/$(1) $(2)
+	openwpm.sif python /opt/crawl/$(1) \
+	--type $(2) --browsers $(BROWSERS) --display $(DISPLAY) \
+	--data $(DATA_DIR) --logs $(LOGS_DIR) --lists $(LISTS_DIR) \
+	--urls $(URLS) --screenshots $(SCREENSHOTS)
+	ifdef $(CMP)
+		--cmp
+	endif
 endef

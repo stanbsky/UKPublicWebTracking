@@ -40,7 +40,7 @@ precrawl:directories .openwpm
 	$(call crawl,precrawl.py,all)
 
 precrawl-small:directories .openwpm
-	$(call crawl,precrawl.py,fire)
+	$(call crawl,precrawl.py,small)
 
 precrawl-test:directories .openwpm
 	$(call crawl,precrawl.py,test)
