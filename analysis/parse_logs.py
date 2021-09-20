@@ -1,5 +1,7 @@
 from tldextract import extract
 from contextlib import closing
+from pathlib import Path
+import argparse
 import sqlite3
 import re
 import json
@@ -10,11 +12,13 @@ class LogParser:
     browsers = {}
     commit_data = {}
 
-    def __init__(self, log, redirect_list, db, table_name='parsed_log'):
+    def __init__(self, log, db, table_name, redirect_list):
         logging.basicConfig(level=logging.INFO)
         self.log = log
-        with open(redirect_list, 'r') as f:
-            self.redirects = json.load(f)
+        self.redirects = None
+        if redirect_list:
+            with open(redirect_list, 'r') as f:
+                self.redirects = json.load(f)
         self.db = db
         self.table_name = table_name
         url_pattern = r'(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))'
@@ -27,6 +31,8 @@ class LogParser:
             'accept_button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?'(.*)'",
             self._accept_not_found:
             'accept_button_not_found, website=(' + url_pattern + ')',
+            self._cmp_found:
+            'BROWSER (\d{7,}): driver: console.log: "CMP Detected: " "(.*)"',
             self._timeout:
             'BROWSER (\d{7,}): (Timeout while executing command, AcceptCookiesCommand)'
         }
@@ -59,6 +65,11 @@ class LogParser:
         url = match.groups()[0]
         visit_data = self._get_visit_data_by_url(url)
         self._add_to_commit(visit_data, accept_found=0)
+
+    def _cmp_found(self, match):
+        browser_id, cmp = match.groups()
+        visit_data = (browser_id, *self.browsers[browser_id].values())
+        self._add_to_commit(visit_data, cmp=cmp)
 
     def _timeout(self, match):
         browser_id, error = match.groups()
@@ -105,6 +116,7 @@ class LogParser:
             'css_id': None,
             'accept_cta': None,
             'banner_selector': None,
+            'cmp': None,
             'error': None
         }
         default_values.update(row)
@@ -118,7 +130,7 @@ class LogParser:
                 for action, pattern in self.matchers.items():
                     match = re.search(pattern, line, re.I)
                     if match:
-                        print(match)
+                        logging.info(f'Calling {action.__name__} with match {match}')
                         action(match)
                         break
 
@@ -132,18 +144,32 @@ class LogParser:
     def commit(self):
         self._freeze_commit_data()
         with closing(sqlite3.connect(self.db)) as con:
+            # TODO: Ask for permission / check args before overwriting
             con.executescript(
                 f'DROP TABLE IF EXISTS {self.table_name};'
                 f'CREATE TABLE {self.table_name} ('
                 f'visit_id INT, browser_id INT, url TEXT, accept_found INT,'
-                f'css_id TEXT, accept_cta TEXT, banner_selector TEXT, error TEXT)'
+                f'css_id TEXT, accept_cta TEXT, banner_selector TEXT, cmp TEXT, error TEXT)'
             )
             con.executemany(
                 f'INSERT INTO {self.table_name}'
                 f'(visit_id, browser_id, url, accept_found, css_id, accept_cta,'
-                f'banner_selector, error) VALUES (?,?,?,?,?,?,?,?)', self.commit_data
+                f'banner_selector, cmp, error) VALUES (?,?,?,?,?,?,?,?,?)', self.commit_data
             )
             con.commit()
+            logging.info(f'Finished. {con.total_changes} rows updated.')
 
 if __name__ == '__main__':
-    parser = LogParser(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser(description='Parse crawl log and record interactions with cookie banners and CMPs to a database.')
+    parser.add_argument('log', type=Path)
+    parser.add_argument('--db', type=Path, default=Path('../data/parsed_logs.sqlite'))
+    parser.add_argument('--table', type=ascii)
+    parser.add_argument('--redirects', type=Path)
+    args = parser.parse_args()
+
+    if not args.table:
+        args.table = args.log.stem
+
+    logs = LogParser(args.log, args.db, args.table, args.redirects)
+    logs.parse()
+    logs.commit()
