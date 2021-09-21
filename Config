@@ -2,7 +2,7 @@
 # ---- CONTAINERISATION CONFIG -----
 # ----------------------------------
 # Select whether we're using singularity or docker
-CONTAINER_TYPE=docker
+CONTAINER_TYPE=singularity
 SINGULARITY_CACHEDIR=$(realpath ./.singularity/cache)
 SINGULARITY_TMPDIR=$(realpath ./.singularity/tmp)
 # Primary group for the users of your system
@@ -26,14 +26,14 @@ NOTEBOOK_HTTPS=0
 # ----------------------------------
 # ---- CRAWL PARAMETERS CONFIG -----
 # ----------------------------------
-DATA_DIR='data'
-LOGS_DIR='logs'
-DISPLAY='xvfb'
+DATA_DIR=data
+LOGS_DIR=logs
+DISPLAY=xvfb
 BROWSERS=9 # Approx. 1 core + 1GB mem needed per browser
-LISTS_DIR='crawl/lists'
-PRECRAWL_URLS='urls.json'
+LISTS_DIR=crawl/lists
+PRECRAWL_URLS=urls.json
 # Don't change this! Instead set when calling make target:
 # `make precrawl CMP=1` to enable cmp interact, or just `make precrawl` not to
-CMP= 
+CMP=
 # Set default here, but can override when calling target. Choices: full/viewport/both/none
-SCREENSHOTS='both'
+SCREENSHOTS=both

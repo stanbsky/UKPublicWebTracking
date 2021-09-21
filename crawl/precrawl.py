@@ -26,24 +26,34 @@ class Precrawl:
         data_dir,
         log_dir,
         lists_dir,
-        num_browsers=1,
-        display_mode='headless',
-        cmp=False
+        num_browsers,
+        display_mode,
+        cmp,
+        name
     ):
 
         if cmp:
             if num_browsers % 3:
                 raise ValueError('Number of browsers must be divisible by 3 when running with CMP interaction')
+        else:
+            cmp = False
         self.cmp = cmp
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         self.timestamp = timestamp # so we can set it later for openwmp
-        self.crawl_dir = data_dir.joinpath(f'crawl-{timestamp}')
+
+        os.chdir('/opt')
+        data_dir = Path(os.path.realpath(data_dir))
+        if name:
+            self.crawl_dir = data_dir.joinpath(name)
+        else:
+            self.crawl_dir = data_dir.joinpath(f'crawl-{timestamp}')
         # .fake_home will be used as the home directory for crawl duration
         fakehome = data_dir.joinpath('.fake_home')
         fakehome.unlink(missing_ok=True)
         self.home_dir = fakehome.symlink_to(self.crawl_dir)
 
+        self.log_dir = Path(os.path.realpath(log_dir))
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s | Precrawl | %(message)s",
@@ -59,18 +69,19 @@ class Precrawl:
         self.db_path = self.crawl_dir.joinpath('precrawl.sqlite')
         logging.info(f'Database set to {self.db_path}')
 
-        if (url_list.suffix == 'json'):
-            with open(lists_dir.joinpath(url_list)) as f:
+        self.lists_dir = Path(os.path.realpath(lists_dir))
+        if (url_list.suffix == '.json'):
+            with open(self.lists_dir.joinpath(url_list)) as f:
                 self.urls = json.load(f)
             for k, v in self.urls.items():
                 logging.info(f"Imported {len(v)} items in the {k} category")
-        elif (url_list.suffix == 'sqlite'):
+        elif (url_list.suffix == '.sqlite'):
             # TODO: Handle sqlite url lists - see main crawl code
             pass
         else:
             raise ValueError('Unrecognised format for url list file.')
 
-    def crawl(self, category='full', screenshot='none'):
+    def do_crawl(self, category='full', screenshot='none'):
 
         if(category == 'full'):
             sites = list()
@@ -111,8 +122,8 @@ class Precrawl:
         if self.cmp:
             for i in range(self.num_browsers):
                 t = i % 3
-                accept_cmp = self.seed_dir.joinpath('accept-cookies.tar')
-                reject_cmp = self.seed_dir.joinpath('reject-cookies.tar')
+                accept_cmp = self.lists_dir.joinpath('accept-cookies.tar')
+                reject_cmp = self.lists_dir.joinpath('reject-cookies.tar')
                 if(t == 0):
                     browser_params[i].seed_tar = None
                 elif(t == 1):
@@ -168,12 +179,13 @@ if __name__ == "__main__":
     parser.add_argument('--type', choices=['test','small','full'], default='full')
     parser.add_argument('--cmp', action='store_true')
     parser.add_argument('--browsers', type=int, default=1)
-    parser.add_argument('--display', type=ascii, default='headless')
+    parser.add_argument('--display', choices=['native','headless','xvfb'], default='headless')
     parser.add_argument('--screenshots', choices=['full','viewport','both','none'], default='none')
-    parser.add_argumen('--data', type=Path, default=Path('../data'))
-    parser.add_argumen('--logs', type=Path, default=Path('../logs'))
-    parser.add_argumen('--lists', type=Path, default=Path('../crawl/lists'))
+    parser.add_argument('--data', type=Path, default=Path('../data'))
+    parser.add_argument('--logs', type=Path, default=Path('../logs'))
+    parser.add_argument('--lists', type=Path, default=Path('../crawl/lists'))
     parser.add_argument('--urls', type=Path, default=Path('urls.json'))
+    parser.add_argument('--name', type=ascii)
     args = parser.parse_args()
 
     crawl = Precrawl(
@@ -183,7 +195,8 @@ if __name__ == "__main__":
         lists_dir = args.lists,
         num_browsers = args.browsers,
         display_mode = args.display,
-        cmp = args.cmp
+        cmp = args.cmp,
+        name = args.name
     )
 
     crawl.do_crawl(category=args.type, screenshot=args.screenshots)
