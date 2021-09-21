@@ -25,6 +25,7 @@ class Precrawl:
         format='json',
         data_dir='../data',
         log_dir='../logs',
+        seed_dir='../crawl/lists',
         num_browsers=4,
         display_mode='headless'
     ):
@@ -32,6 +33,7 @@ class Precrawl:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         self.timestamp = timestamp # so we can set it later for openwmp
         data_dir = Path(os.path.realpath(data_dir))
+        self.seed_dir = Path(os.path.realpath(seed_dir))
         self.crawl_dir = data_dir.joinpath(f'crawl-{timestamp}')
         # .fake_home will be used as the home directory for crawl duration
         fakehome = data_dir.joinpath('.fake_home')
@@ -50,7 +52,7 @@ class Precrawl:
 
         self.num_browsers = num_browsers
         self.display_mode = display_mode
-        
+
         self.db_path = self.crawl_dir.joinpath('precrawl.sqlite')
         logging.info(f'Database set to {self.db_path}')
 
@@ -70,6 +72,9 @@ class Precrawl:
             # Allerdale - CMP, AMP; CNCBuilding... - CMP
             sites = ['https://www.allerdale.gov.uk/en','https://www.cncbuildingcontrol.gov.uk']
             self.num_browsers = 1
+        elif(category == 'cmp'):
+            sites = ['https://www.allerdale.gov.uk/en','https://www.cncbuildingcontrol.gov.uk']
+            self.num_browsers = 3
         else:
             sites = self.urls[category]
 
@@ -97,6 +102,19 @@ class Precrawl:
             browser_params[i].bot_mitigation = True
             # Record all body content in leveldb
             browser_params[i].save_content = "main_frame,ping,script,sub_frame,xmlhttprequest,other"
+
+        if(category == 'cmp'):
+            for i in range(self.num_browsers):
+                t = i % 3
+                accept_cmp = self.seed_dir.joinpath('accept-cookies.tar')
+                reject_cmp = self.seed_dir.joinpath('reject-cookies.tar')
+                # import pdb;pdb.set_trace()
+                if(t == 0):
+                    browser_params[i].seed_tar = None
+                elif(t == 1):
+                    browser_params[i].seed_tar = accept_cmp
+                elif(t == 2):
+                    browser_params[i].seed_tar = reject_cmp
 
         with TaskManager(
             manager_params,
@@ -128,8 +146,15 @@ class Precrawl:
                     command_sequence.save_screenshot()
                     command_sequence.screenshot_full_page(suffix='full')
 
-                # Run commands across the three browsers (simple parallelization)
-                manager.execute_command_sequence(command_sequence)
+                if(category != 'cmp'):
+                    # Run commands across the three browsers (simple parallelization)
+                    manager.execute_command_sequence(command_sequence)
+                else:
+                    # Visit the same website by each of the browsers
+                    # TODO: we'll need to enumerate differently through sites for browsers > 3
+                    for i in range(self.num_browsers):
+                        manager.execute_command_sequence(command_sequence, index=i)
+
 
 if __name__ == "__main__":
     crawl = Precrawl('/opt/crawl/lists/urls.json', display_mode='xvfb')

@@ -1,0 +1,7 @@
+Starting to work on CommandSequence with visit_id
+executing command
+console.log: "CMP Detected: "
+console.log: "Triggering method: "
+console.log: "Triggered detector: "
+console.warn: "Multiple possible targets: "
+accept_cookies

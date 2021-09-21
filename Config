@@ -1,5 +1,5 @@
 # Select whether we're using singularity or docker
-CONTAINER_TYPE=docker
+CONTAINER_TYPE=singularity
 SINGULARITY_CACHEDIR=$(realpath ./.singularity/cache)
 SINGULARITY_TMPDIR=$(realpath ./.singularity/tmp)
 # Jupyter notebook settings
