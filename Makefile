@@ -12,6 +12,10 @@ ifeq ($(NOTEBOOK_HTTPS),1)
 	SSL=-e GEN_CERT\=yes
 endif
 
+ifdef CMP
+	CMP=--cmp
+endif
+
 setup-openwpm-submodule:
 	git submodule add $(OPENWPM_REPO) OpenWPM
 	cd OpenWPM; git checkout $(OPENWPM_VERSION)
@@ -40,7 +44,7 @@ precrawl:directories .openwpm
 	$(call crawl,precrawl.py,all)
 
 precrawl-small:directories .openwpm
-	$(call crawl,precrawl.py,fire)
+	$(call crawl,precrawl.py,small)
 
 precrawl-test:directories .openwpm
 	$(call crawl,precrawl.py,test)

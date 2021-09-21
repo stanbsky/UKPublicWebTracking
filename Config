@@ -1,7 +1,19 @@
+# ----------------------------------
+# ---- CONTAINERISATION CONFIG -----
+# ----------------------------------
 # Select whether we're using singularity or docker
 CONTAINER_TYPE=singularity
 SINGULARITY_CACHEDIR=$(realpath ./.singularity/cache)
 SINGULARITY_TMPDIR=$(realpath ./.singularity/tmp)
+# Primary group for the users of your system
+GROUP=users
+# Don't change unless you have a reason to
+OPENWPM_REPO=https://github.com/stanbsky/OpenWPM.git
+OPENWPM_VERSION=v0.17.0
+OPENWPM_DOCKER_TAG=cmp
+# ----------------------------------
+# ---- JUPYTER NOTEBOOK CONFIG -----
+# ----------------------------------
 # Jupyter notebook settings
 #
 # Port to access notebook on, e.g. 8888 for https://localhost:8888
@@ -11,10 +23,17 @@ NOTEBOOK_PORT=24440
 NOTEBOOK_PASS='argon2:$$argon2id$$v=19$$m=10240,t=10,p=8$$Jl7whmIEtW7USolMH6w0MQ$$fS5qc3oookfChh146si8Ng'
 # Run notebook via HTTPS with self-signed cert?
 NOTEBOOK_HTTPS=0
-
-# Primary group for the users of your system
-GROUP=users
-# Don't change unless you have a reason to
-OPENWPM_REPO=https://github.com/stanbsky/OpenWPM.git
-OPENWPM_VERSION=v0.17.0
-OPENWPM_DOCKER_TAG=cmp
+# ----------------------------------
+# ---- CRAWL PARAMETERS CONFIG -----
+# ----------------------------------
+DATA_DIR=data
+LOGS_DIR=logs
+DISPLAY=xvfb
+BROWSERS=9 # Approx. 1 core + 1GB mem needed per browser
+LISTS_DIR=crawl/lists
+PRECRAWL_URLS=urls.json
+# Don't change this! Instead set when calling make target:
+# `make precrawl CMP=1` to enable cmp interact, or just `make precrawl` not to
+CMP=
+# Set default here, but can override when calling target. Choices: full/viewport/both/none
+SCREENSHOTS=both
