@@ -142,6 +142,11 @@ class Precrawl:
                 # Start by visiting the page
                 command_sequence.get(sleep=3)
 
+                # import pdb
+                # pdb.set_trace()
+
+                command_sequence.accept_cookie_notice()
+
                 if screenshot:
                     command_sequence.save_screenshot()
                     command_sequence.screenshot_full_page(suffix='full')
