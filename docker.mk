@@ -19,6 +19,8 @@ define crawl
 	-v $(CURDIR)/data:/opt/data \
 	-v $(CURDIR)/logs:/opt/logs \
 	--group-add $(GROUP) \
-	-it --rm openwpm python /opt/crawl/$(1) $(2)
+	-it --rm openwpm python /opt/crawl/$(1) \
+	--type $(2) --browsers $(BROWSERS) --display $(DISPLAY) \
+	--data $(DATA_DIR) --logs $(LOGS_DIR) --lists $(LISTS_DIR) \
+	--urls $(PRECRAWL_URLS) --screenshots $(SCREENSHOTS) $(CMP)
 endef
-
