@@ -21,20 +21,26 @@ class LogParser:
                 self.redirects = json.load(f)
         self.db = db
         self.table_name = table_name
-        url_pattern = r'(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))'
+        url_pattern = r'(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))'
         self.matchers = {
             self._get_cmd:
             'BROWSER (\d{7,}).*GetCommand\(' + url_pattern,
             self._new_visit:
             'Starting to work on CommandSequence with visit_id (\d{10,}) on browser with id (\d{7,})',
+            self._banner_found:
+            'banner_found, website=' + url_pattern + ", selector=(.*)",
+            self._banner_not_found:
+            'banner_not_found, website=' + url_pattern,
             self._accept_found:
             'accept_button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?'(.*)'",
             self._accept_not_found:
-            'accept_button_not_found, website=(' + url_pattern + ')',
+            'accept_button_not_found, website=' + url_pattern + ', buttons=\[(.*)\], call_to_actions=\[(.*)\]',
             self._cmp_found:
             'BROWSER (\d{7,}): driver: console.log: "CMP Detected: " "(.*)"',
             self._timeout:
-            'BROWSER (\d{7,}): (Timeout while executing command, AcceptCookiesCommand)'
+            'BROWSER (\d{7,}): (Timeout while executing command, AcceptCookiesCommand)',
+            self._error_parsing_button:
+            'accept_cookies: (error when parsing cookie banner)\. website=' + url_pattern + ', message=(.*)'
         }
 
     def _get_cmd(self, match):
@@ -62,9 +68,19 @@ class LogParser:
         self._add_to_commit(visit_data, accept_found=1, css_id=css_id, accept_cta=cta)
     
     def _accept_not_found(self, match):
+        url, buttons, call_to_actions = match.groups()
+        visit_data = self._get_visit_data_by_url(url)
+        self._add_to_commit(visit_data, accept_found=0, buttons=buttons, cta_list=call_to_actions)
+
+    def _banner_found(self, match):
+        url, selector = match.groups()
+        visit_data = self._get_visit_data_by_url(url)
+        self._add_to_commit(visit_data, banner_found=1, banner_selector=selector)
+
+    def _banner_not_found(self, match):
         url = match.groups()[0]
         visit_data = self._get_visit_data_by_url(url)
-        self._add_to_commit(visit_data, accept_found=0)
+        self._add_to_commit(visit_data, banner_found=0)
 
     def _cmp_found(self, match):
         browser_id, cmp = match.groups()
@@ -75,6 +91,11 @@ class LogParser:
         browser_id, error = match.groups()
         visit_data = (browser_id, *self.browsers[browser_id].values())
         self._add_to_commit(visit_data, error=error)
+
+    def _error_parsing_button(self, match):
+        error1, url, error2 = match.groups()
+        visit_data = self._get_visit_data_by_url(url)
+        self._add_to_commit(visit_data, error=(error1 + error2))
 
     # def _get_visit_data_by_browser_id(self, browser_id):
 
@@ -112,9 +133,12 @@ class LogParser:
             'visit_id': None,
             'browser_id': None,
             'url': None,
+            'banner_found': 0,
             'accept_found': 0,
+            'buttons': None,
             'css_id': None,
             'accept_cta': None,
+            'cta_list': None,
             'banner_selector': None,
             'cmp': None,
             'error': None
@@ -148,13 +172,14 @@ class LogParser:
             con.executescript(
                 f'DROP TABLE IF EXISTS {self.table_name};'
                 f'CREATE TABLE {self.table_name} ('
-                f'visit_id INT, browser_id INT, url TEXT, accept_found INT,'
-                f'css_id TEXT, accept_cta TEXT, banner_selector TEXT, cmp TEXT, error TEXT)'
+                f'visit_id INT, browser_id INT, url TEXT, accept_found INT, banner_found INT,'
+                f'css_id TEXT, accept_cta TEXT, banner_selector TEXT, cmp TEXT, error TEXT,'
+                f'cta_list TEXT, buttons TEXT)'
             )
             con.executemany(
                 f'INSERT INTO {self.table_name}'
-                f'(visit_id, browser_id, url, accept_found, css_id, accept_cta,'
-                f'banner_selector, cmp, error) VALUES (?,?,?,?,?,?,?,?,?)', self.commit_data
+                f'(visit_id, browser_id, url, banner_found, accept_found, buttons, css_id, accept_cta,'
+                f'cta_list, banner_selector, cmp, error ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', self.commit_data
             )
             con.commit()
             logging.info(f'Finished. {con.total_changes} rows updated.')
