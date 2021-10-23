@@ -22,25 +22,26 @@ class LogParser:
         self.db = db
         self.table_name = table_name
         url_pattern = r'(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))'
+        vid_prefix = 'visit_id (\d{10,}): accept_cookies: '
         self.matchers = {
             self._get_cmd:
             'BROWSER (\d{7,}).*GetCommand\(' + url_pattern,
             self._new_visit:
             'Starting to work on CommandSequence with visit_id (\d{10,}) on browser with id (\d{7,})',
             self._banner_found:
-            'banner_found, website=' + url_pattern + ", selector=(.*)",
+            vid_prefix + 'banner_found, website=' + url_pattern + ", selector=(.*)",
             self._banner_not_found:
-            'banner_not_found, website=' + url_pattern,
+            vid_prefix + 'banner_not_found, website=' + url_pattern,
             self._accept_found:
-            'accept_button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?'(.*)'",
+            vid_prefix + 'accept_button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?(.*)",
             self._accept_not_found:
-            'accept_button_not_found, website=' + url_pattern + ', buttons=\[(.*)\], call_to_actions=\[(.*)\]',
+            vid_prefix + 'accept_button_not_found, website=' + url_pattern + ', buttons=\[(.*)\], call_to_actions=\[(.*)\]',
             self._cmp_found:
             'BROWSER (\d{7,}): driver: console.log: "CMP Detected: " "(.*)"',
             self._timeout:
-            'BROWSER (\d{7,}): (Timeout while executing command, AcceptCookiesCommand)',
+            'BROWSER (\d{7,}): (Timeout while executing command, AcceptCookiesCommand).*visit_id (\d{10,})',
             self._error_parsing_button:
-            'accept_cookies: (error when parsing cookie banner)\. website=' + url_pattern + ', message=(.*)'
+            vid_prefix + '(error when parsing cookie banner)\. website=' + url_pattern + ', message=(.*)'
         }
 
     def _get_cmd(self, match):
@@ -62,24 +63,23 @@ class LogParser:
         browser['visit_id'] = visit_id
 
     def _accept_found(self, match):
-        url = match.groups()[0]
-        css_id, cta = match.groups()[-2:]
-        visit_data = self._get_visit_data_by_url(url)
+        vid, url, css_id, cta = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, accept_found=1, css_id=css_id, accept_cta=cta)
     
     def _accept_not_found(self, match):
-        url, buttons, call_to_actions = match.groups()
-        visit_data = self._get_visit_data_by_url(url)
+        vid, url, buttons, call_to_actions = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, accept_found=0, buttons=buttons, cta_list=call_to_actions)
 
     def _banner_found(self, match):
-        url, selector = match.groups()
-        visit_data = self._get_visit_data_by_url(url)
+        vid, url, selector = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, banner_found=1, banner_selector=selector)
 
     def _banner_not_found(self, match):
-        url = match.groups()[0]
-        visit_data = self._get_visit_data_by_url(url)
+        vid, url = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, banner_found=0)
 
     def _cmp_found(self, match):
@@ -88,16 +88,21 @@ class LogParser:
         self._add_to_commit(visit_data, cmp=cmp)
 
     def _timeout(self, match):
-        browser_id, error = match.groups()
+        browser_id, error, vid = match.groups()
         visit_data = (browser_id, *self.browsers[browser_id].values())
         self._add_to_commit(visit_data, error=error)
 
     def _error_parsing_button(self, match):
-        error1, url, error2 = match.groups()
-        visit_data = self._get_visit_data_by_url(url)
+        vid, error1, url, error2 = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, error=(error1 + error2))
 
-    # def _get_visit_data_by_browser_id(self, browser_id):
+    def _get_visit_data_by_vid(self, vid):
+        for browser_id, browser_entry in self.browsers.items():
+            if vid == browser_entry['visit_id']:
+                return (browser_id, browser_entry['url'], vid)
+        logging.error(f"Couldn't find a browser for visit_id {vid}!")
+        return (None, None, None)
 
     def _get_visit_data_by_url(self, url):
         for browser_id, browser_entry in self.browsers.items():
