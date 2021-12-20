@@ -159,7 +159,7 @@ class LogParser:
                 for action, pattern in self.matchers.items():
                     match = re.search(pattern, line, re.I)
                     if match:
-                        logging.info(f'Calling {action.__name__} with match {match}')
+                        logging.debug(f'Calling {action.__name__} with match {match}')
                         action(match)
                         break
 

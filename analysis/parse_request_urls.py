@@ -70,11 +70,11 @@ with closing(sqlite3.connect(sys.argv[1])) as con:
                 try:
                     tracker_info = disconnect_domains[url]
                     is_tracker = 1
-                    logging.info(f'Tracker detected: {url}')
+                    logging.debug(f'Tracker detected: {url}')
                 except KeyError:
                     tracker_info = None
                     is_tracker = 0
-                    logging.info(f'Benign 3rd party request: {url}')
+                    logging.debug(f'Benign 3rd party request: {url}')
                 update_data.append((url, third_party, is_tracker, json.dumps(tracker_info), rid))
             else:
                 pass
