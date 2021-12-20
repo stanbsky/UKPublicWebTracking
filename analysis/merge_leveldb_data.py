@@ -27,8 +27,11 @@ with closing(sqlite3.connect(sys.argv[1])) as con:
                         (content, h)
                     )
                     rows += 1
-                    logging.info(f'Content inserted for {h}')
+                    logging.debug(f'Content inserted for {h}')
                 else:
-                    logging.info(f'No content found for {h}')
+                    logging.debug(f'No content found for {h}')
             con.commit()
             logging.info(f'Done. {rows} rows updated.')
+            cur.execute('DELETE FROM request_data WHERE length(content_blob) < 3000')
+            con.commit()
+            logging.info(f'Deleted {cur.rowcount} abnormally short responses.')
