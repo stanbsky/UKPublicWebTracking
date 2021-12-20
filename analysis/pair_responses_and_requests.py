@@ -19,5 +19,6 @@ with closing(sqlite3.connect(sys.argv[1])) as con:
                 http_responses.content_hash
                 FROM http_requests INNER JOIN http_responses
                 ON http_requests.url = http_responses.url
-                WHERE http_requests.resource_type = 'main_frame';
+                WHERE http_requests.resource_type = 'main_frame'
+                GROUP BY http_requests.url;
         """)
