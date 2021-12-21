@@ -10,7 +10,7 @@ GROUP=users
 # Don't change unless you have a reason to
 OPENWPM_REPO=https://github.com/stanbsky/OpenWPM.git
 OPENWPM_VERSION=v0.17.0
-OPENWPM_DOCKER_TAG=cmp
+OPENWPM_DOCKER_TAG=crawl
 # ----------------------------------
 # ---- JUPYTER NOTEBOOK CONFIG -----
 # ----------------------------------
@@ -26,14 +26,18 @@ NOTEBOOK_HTTPS=0
 # ----------------------------------
 # ---- CRAWL PARAMETERS CONFIG -----
 # ----------------------------------
+VENV=/scratch/student/sb2444/UKPublicWebTracking/venv/bin/python
 DATA_DIR=data
 LOGS_DIR=logs
 DISPLAY=xvfb
-BROWSERS=9 # Approx. 1 core + 1GB mem needed per browser
+BROWSERS=15 # Approx. 1 core + 1GB mem needed per browser
 LISTS_DIR=crawl/lists
-PRECRAWL_URLS=urls.json
+#PRECRAWL_URLS=urls.json
+# PRECRAWL_URLS=cookie02.sqlite
+PRECRAWL_URLS=publicextract.charity.json
 # Don't change this! Instead set when calling make target:
 # `make precrawl CMP=1` to enable cmp interact, or just `make precrawl` not to
 CMP=
+COOKIES=1
 # Set default here, but can override when calling target. Choices: full/viewport/both/none
 SCREENSHOTS=both

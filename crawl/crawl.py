@@ -26,6 +26,7 @@ from command_accept_cookies import AcceptCookiesCommand
 from command_reject_cookies import RejectCookiesCommand
 from command_collect_cookies import CollectCookiesCommand
 
+from chris_loader import *
 
 class Crawl:
 
@@ -49,7 +50,7 @@ class Crawl:
             name=name
         )
         self._setup_crawl_features(features)
-        self.sites = self._parse_site_list(url_list)
+        self.sites = load_websites(lists_dir.joinpath(url_list))
 
     def do_crawl(self, category):
         manager_params = ManagerParams(num_browsers=self.num_browsers)
@@ -64,13 +65,13 @@ class Crawl:
             LevelDbProvider(self.crawl_dir.joinpath('crawl-leveldb'))
         ) as tm:
             if category and category == 'test':
-                for site in self.sites[:3]:
-                    self._browse(tm, site)
+                for index, site in enumerate(self.sites):
+                    self._browse(tm, {'tld': site, 'url': site, 'id': index})
+                    if index > 13:
+                        break
                 return
-            for site in self.sites:
-                if category and site['category'] != category:
-                    continue
-                self._browse(tm, site)
+            for index, site in enumerate(self.sites):
+                self._browse(tm, {'tld': site, 'url': site, 'id': index})
 
     def _setup_directories(self, data_dir, log_dir, lists_dir, name):
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
@@ -137,6 +138,8 @@ class Crawl:
             browser_params[i].bot_mitigation = True
             # Record all body content in leveldb
             browser_params[i].save_content = self.features['collect_content']
+            if self.features['dump_profiles']:
+                browser_params[i].custom_params = {'dump_profile': True, 'profile_dir': str(self.profiles_dir)}
 
         return browser_params
 
@@ -186,11 +189,6 @@ class Crawl:
             url=site['tld'], site_rank=site['id'], reset=True, callback=callback)
         cs.append_command(GetCommand(url=site['url'], sleep=3), timeout=60)
 
-        if self.features['collect_cookies'] and (action == 'accept_banner' or
-                                                 action == 'reject_banner'):
-            cs.append_command(CollectCookiesCommand(stage='pre-accept',
-                                                    output_path=self.cookie_dir))
-
         if action == 'accept_banner':
             cs.append_command(AcceptCookiesCommand(css_selectors=self.css_selectors),
                               timeout=180)
@@ -202,18 +200,18 @@ class Crawl:
             if action == 'accept_banner' or action == 'reject_banner':
                 stage = 'post_accept'
             else:
-                stage = 'vanilla'
+                stage = 'pre-accept'
             cs.append_command(CollectCookiesCommand(stage=stage,
                                                     output_path=self.cookie_dir))
 
         if self.features['screenshot']:
             cs.append_command(ScreenshotFullPageCommand(suffix=''))
 
-        if self.features['dump_profiles']:
-            hashed_url = md5(site['tld'].encode('utf-8')).hexdigest()
-            tar = self.profiles_dir.joinpath(f'{hashed_url}-{action}.tar.gz')
-            cs.append_command(DumpProfileCommand(
-                tar_path=tar, close_webdriver=True, compress=True))
+        # if self.features['dump_profiles']:
+        #     hashed_url = md5(site['tld'].encode('utf-8')).hexdigest()
+        #     tar = self.profiles_dir.joinpath(f'{hashed_url}-{action}.tar.gz')
+        #     cs.append_command(DumpProfileCommand(
+        #         tar_path=tar, close_webdriver=True, compress=True))
 
         tm.execute_command_sequence(cs, seed_tar=profile)
 

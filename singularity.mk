@@ -20,21 +20,50 @@ notebook: notebook.sif
 	singularity instance start \
 	-H $(CURDIR)/.notebook_home \
 	-B $(CURDIR)/data:/home/jovyan/work \
+	-B $(CURDIR)/..:/home/jovyan/work/old \
     notebook.sif notebook
 	singularity exec instance://notebook start-notebook.sh \
 	--NotebookApp.notebook_dir=/home/jovyan/work \
     --NotebookApp.password=$(NOTEBOOK_PASS) \
     --NotebookApp.port=$(NOTEBOOK_PORT)
 
+#define crawl
+#	singularity exec \
+#	-B $(CURDIR)/crawl:/opt/crawl \
+#	-B $(CURDIR)/data:/opt/data \
+#	-B $(CURDIR)/logs:/opt/logs \
+#	-B $(CURDIR)/venv:/opt/venv \
+#	-B /run:/run \
+#	--pwd /opt/OpenWPM \
+#	openwpm.sif python /opt/crawl/$(1) \
+#	--type $(2) --browsers $(BROWSERS) --display $(DISPLAY) \
+#	--data $(DATA_DIR) --logs $(LOGS_DIR) --lists $(LISTS_DIR) \
+#	--urls $(PRECRAWL_URLS) --accept_banner --collect_cookies --vanilla --collect_data --name 'accept_with_cookies'
+#endef
+
+#define crawl
+#	singularity exec \
+#	-B $(CURDIR)/crawl:/opt/crawl \
+#	-B $(CURDIR)/data:/opt/data \
+#	-B $(CURDIR)/logs:/opt/logs \
+#	-B /run:/run \
+#	--pwd /opt/OpenWPM \
+#	openwpm.sif python /opt/crawl/$(1) \
+#	--type $(2) --browsers $(BROWSERS) --display $(DISPLAY) \
+#	--data $(DATA_DIR) --logs $(LOGS_DIR) --lists $(LISTS_DIR) \
+#	--urls $(PRECRAWL_URLS) --screenshots $(SCREENSHOTS) $(CMP) $(COOKIES) --name cookie-reject
+#endef
+
 define crawl
 	singularity exec \
 	-B $(CURDIR)/crawl:/opt/crawl \
 	-B $(CURDIR)/data:/opt/data \
 	-B $(CURDIR)/logs:/opt/logs \
+	-B $(CURDIR)/venv:/opt/venv \
 	-B /run:/run \
 	--pwd /opt/OpenWPM \
 	openwpm.sif python /opt/crawl/$(1) \
 	--type $(2) --browsers $(BROWSERS) --display $(DISPLAY) \
 	--data $(DATA_DIR) --logs $(LOGS_DIR) --lists $(LISTS_DIR) \
-	--urls $(PRECRAWL_URLS) --screenshots $(SCREENSHOTS) $(CMP)
+	--urls $(PRECRAWL_URLS) --dump_profile --vanilla --collect_cookies --collect_data --name 'chris-vanilla'
 endef
