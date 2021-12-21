@@ -16,6 +16,10 @@ ifdef CMP
 	CMP=--cmp
 endif
 
+ifdef COOKIES
+	COOKIES=--cookies
+endif
+
 setup-openwpm-submodule:
 	git submodule add $(OPENWPM_REPO) OpenWPM
 	cd OpenWPM; git checkout $(OPENWPM_VERSION)
@@ -40,14 +44,20 @@ fix-permissions:
 	sudo find data/ -type d -exec chmod 2775 {} \+
 	sudo find data/ -type f -exec chmod 664 {} \+
 
+crawl:directories .openwpm
+	$(call crawl,crawl.py,full)
+
+crawl-small:directories .openwpm
+	$(call crawl,crawl.py,small)
+
+crawl-test:directories .openwpm
+	$(call crawl,crawl.py,test)
+
 precrawl:directories .openwpm
-	$(call crawl,precrawl.py,all)
+	$(call crawl,precrawl-reject.py,full)
 
 precrawl-small:directories .openwpm
 	$(call crawl,precrawl.py,small)
 
 precrawl-test:directories .openwpm
 	$(call crawl,precrawl.py,test)
-
-crawl:directories .openwpm
-	echo "This will run a full crawl including deep links harvested during precrawl. Not yet implemented."

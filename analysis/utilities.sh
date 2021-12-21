@@ -5,7 +5,7 @@
 # First arg: path to directory
 # Second arg: number of cores to use
 upload_to_gdrive() {
-    tar -cvS -I "xz -T$2" -f $1tar.xz $1; rclone copy -P $1tar.xz gdrive:/WebTracking2021/data
+    tar -cvS -I "xz -T$2" -f $1.tar.xz $1; rclone copy -P $1.tar.xz gdrive:/WebTracking2021/data
 }
 
 mem_use() {
