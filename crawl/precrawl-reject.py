@@ -88,7 +88,7 @@ class Precrawl:
                 logging.info(f"Imported {len(v)} items in the {k} category")
         elif (url_list.suffix == '.sqlite'):
             with closing(sqlite3.connect(self.lists_dir.joinpath(url_list))) as con:
-                self.sites = con.execute(f'SELECT ROWID, url, banner_selector FROM {url_list.stem} WHERE banner_selector IS NOT NULL').fetchall()
+                self.sites = con.execute(f'SELECT ROWID, url, banner_selector FROM "{url_list.stem}" WHERE banner_selector IS NOT NULL').fetchall()
         else:
             raise ValueError('Unrecognised format for url list file.')
 
@@ -211,6 +211,10 @@ if __name__ == "__main__":
     parser.add_argument('--urls', type=Path, default=Path('urls.json'))
     parser.add_argument('--name', type=ascii)
     args = parser.parse_args()
+
+    # Fix argparse adding quotes to strings
+    if args.name:
+        args.name = args.name[1:-1]
 
     crawl = Precrawl(
         url_list = args.urls,
