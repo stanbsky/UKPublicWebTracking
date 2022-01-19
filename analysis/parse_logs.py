@@ -13,7 +13,7 @@ class LogParser:
     commit_data = {}
 
     def __init__(self, log, db, table_name, redirect_list):
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG)
         self.log = log
         self.redirects = None
         if redirect_list:
@@ -22,7 +22,7 @@ class LogParser:
         self.db = db
         self.table_name = table_name
         url_pattern = r'(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))'
-        vid_prefix = 'visit_id (\d{10,}): accept_cookies: '
+        vid_prefix = 'visit_id (\d{10,}):(?: accept_cookies:)? '
         self.matchers = {
             self._get_cmd:
             'BROWSER (\d{7,}).*GetCommand\(' + url_pattern,
@@ -36,6 +36,12 @@ class LogParser:
             vid_prefix + 'accept_button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?(.*)",
             self._accept_not_found:
             vid_prefix + 'accept_button_not_found, website=' + url_pattern + ', buttons=\[(.*)\], call_to_actions=\[(.*)\]',
+# 2021-12-22 15:01:58,826 | Precrawl | visit_id 5803987284748054: reject_btn: accept_button_not_found, website=https://www.childcarechoices.gov.uk/
+            self._reject_found:
+            vid_prefix + 'reject_btn: button_found, (.*)',
+# 2021-12-22 15:01:36,787 | Precrawl | visit_id 2662554898613848: reject_btn: button_found, website=https://www.nibusinessinfo.co.uk/, id=custom-id-3, call_to_action=no, thanks
+            self._reject_not_found:
+            vid_prefix + 'reject_btn: accept_button_not_found, (.*)',
             self._cmp_found:
             'BROWSER (\d{7,}): driver: console.log: "CMP Detected: " "(.*)"',
             self._timeout:
@@ -72,6 +78,18 @@ class LogParser:
         visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, accept_found=0, buttons=buttons, cta_list=call_to_actions)
 
+    def _reject_found(self, match):
+        vid, xs = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
+        metadata = self._match_metadata(xs)
+        self._add_to_commit(visit_data, reject_found=1, **metadata)
+
+    def _reject_not_found(self, match):
+        vid, xs = match.groups()
+        visit_data = self._get_visit_data_by_vid(vid)
+        metadata = self._match_metadata(xs)
+        self._add_to_commit(visit_data, reject_found=0, **metadata)
+
     def _banner_found(self, match):
         vid, url, selector = match.groups()
         visit_data = self._get_visit_data_by_vid(vid)
@@ -96,6 +114,16 @@ class LogParser:
         vid, error1, url, error2 = match.groups()
         visit_data = self._get_visit_data_by_vid(vid)
         self._add_to_commit(visit_data, error=(error1 + error2))
+
+    def _match_metadata(self, xs):
+        url_pattern = r'(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))'
+        metadata = {}
+        # metadata['website'] = re.search(r', website=' + url_pattern, xs, re.I)
+        metadata['buttons'] = r.group(1) if (r := re.search(r', buttons=\[(.*)\]', xs, re.I)) else None
+        metadata['css_id'] = r.group(1) if (r := re.search(r', id=(.*), call_to_action=', xs, re.I)) else None
+        metadata['reject_cta'] = r.group(1) if (r := re.search(r', call_to_action=(.*)', xs, re.I)) else None
+        metadata['cta_list'] = r.group(1) if (r := re.search(r', call_to_actions=\[(.*)\]', xs, re.I)) else None
+        return metadata
 
     def _get_visit_data_by_vid(self, vid):
         for browser_id, browser_entry in self.browsers.items():
@@ -140,9 +168,11 @@ class LogParser:
             'url': None,
             'banner_found': 0,
             'accept_found': 0,
+            'reject_found': 0,
             'buttons': None,
             'css_id': None,
             'accept_cta': None,
+            'reject_cta': None,
             'cta_list': None,
             'banner_selector': None,
             'cmp': None,
@@ -177,14 +207,14 @@ class LogParser:
             con.executescript(
                 f'DROP TABLE IF EXISTS {self.table_name};'
                 f'CREATE TABLE {self.table_name} ('
-                f'visit_id INT, browser_id INT, url TEXT, accept_found INT, banner_found INT,'
-                f'css_id TEXT, accept_cta TEXT, banner_selector TEXT, cmp TEXT, error TEXT,'
+                f'visit_id INT, browser_id INT, url TEXT, accept_found INT, reject_found INT, banner_found INT,'
+                f'css_id TEXT, accept_cta TEXT, reject_cta TEXT, banner_selector TEXT, cmp TEXT, error TEXT,'
                 f'cta_list TEXT, buttons TEXT)'
             )
             con.executemany(
                 f'INSERT INTO {self.table_name}'
-                f'(visit_id, browser_id, url, banner_found, accept_found, buttons, css_id, accept_cta,'
-                f'cta_list, banner_selector, cmp, error ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', self.commit_data
+                f'(visit_id, browser_id, url, banner_found, accept_found, reject_found, buttons, css_id, accept_cta,'
+                f'reject_cta, cta_list, banner_selector, cmp, error ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', self.commit_data
             )
             con.commit()
             logging.info(f'Finished. {con.total_changes} rows updated.')
