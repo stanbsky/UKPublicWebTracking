@@ -33,9 +33,9 @@ class LogParser:
             self._banner_not_found:
             vid_prefix + 'banner_not_found, website=' + url_pattern,
             self._accept_found:
-            vid_prefix + 'accept_button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?(.*)",
+            vid_prefix + 'accept_btn: button_found, website=' + url_pattern + ", id=(.*), call_to_action=b?(.*)",
             self._accept_not_found:
-            vid_prefix + 'accept_button_not_found, website=' + url_pattern + ', buttons=\[(.*)\], call_to_actions=\[(.*)\]',
+            vid_prefix + 'accept_btn: accept_button_not_found, website=' + url_pattern + ', buttons=\[(.*)\], call_to_actions=\[(.*)\]',
 # 2021-12-22 15:01:58,826 | Precrawl | visit_id 5803987284748054: reject_btn: accept_button_not_found, website=https://www.childcarechoices.gov.uk/
             self._reject_found:
             vid_prefix + 'reject_btn: button_found, (.*)',
