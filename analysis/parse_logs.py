@@ -137,6 +137,8 @@ class LogParser:
             if extract(browser_entry['url'])[1:] == extract(url)[1:]:
                 return (browser_id, browser_entry['url'], browser_entry['visit_id'])
         # Couldn't find browser in self.browsers, check redirects
+        if not self.redirects:
+            logging.error(f'Tried checking redirects, but no redirects file was provided!')
         for entry in self.redirects:
             visit_id, original_url, redirected_url = entry
             for browser_id, browser_entry in self.browsers.items():

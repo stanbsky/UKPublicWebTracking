@@ -10,6 +10,19 @@ logs
 *.def
 # Jupyter notebook home directory
 .notebook_home
+# Ignore random files scattered where they don't belong
+*.ipynb
+*.tar*
+!crawl/lists/*.tar*
+*.sqlite
+!crawl/lists/*.sqlite
+*.csv
+!crawl/lists/*.csv
+*.json
+!crawl/lists/*.json
+*.bak
+*.drawio
+sql
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
