@@ -1,3 +1,4 @@
+import re
 import logging
 import sys
 import sqlite3
@@ -11,7 +12,6 @@ with closing(sqlite3.connect(sys.argv[1])) as con:
     hashes = cur.execute(
         'SELECT content_hash FROM request_data WHERE content_hash IS NOT NULL'
     ).fetchall()
-    import pdb;pdb.set_trace()
     try:
         logging.info('Adding \'content_blob\' column')
         cur.execute('ALTER TABLE request_data ADD content_blob BLOB')
@@ -43,3 +43,25 @@ with closing(sqlite3.connect(sys.argv[1])) as con:
     cur.execute('UPDATE request_data SET is_short = 1 WHERE length(content_blob) < 3000')
     con.commit()
     logging.info(f'Detected {cur.rowcount} abnormally short responses.')
+
+    # Sanity check: does content_blob contain a <title> tag?
+    def regexp(x,y, search=re.search):
+        try:
+            return 1 if search(x, y) else 0
+        except Exception as e:
+            logging.exception(e)
+    con.create_function('regexp', 2, regexp)
+    bad_content = cur.execute("SELECT visit_id FROM request_data WHERE NOT content_blob REGEXP ?", [rb'<title.*?>|<TITLE.*?>']).fetchall()
+    bad_records_count = len(bad_content)
+    if bad_records_count > 0:
+        logging.warning(
+            f'{bad_records_count} entries do not contain a <title> tag and are likely not main page content!'
+        )
+        try:
+            logging.info('Adding a bad_content column...')
+            cur.execute('ALTER TABLE request_data ADD bad_content INTEGER')
+        except sqlite3.Error:
+            logging.warning('\'bad_content\' column already exists')
+        cur.executemany('UPDATE request_data SET bad_content = 1 WHERE visit_id = ?', bad_content)
+        con.commit()
+        logging.info(f'Done. {cur.rowcount} bad content rows labelled.')
